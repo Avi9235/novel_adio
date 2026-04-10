@@ -1,0 +1,5 @@
+{
+  "name": "Novel to Audiobook Reader",
+  "description": "A personal novel-to-audiobook system that converts EPUB/TXT files to audio using TTS, with auto-scroll and bookmarks.",
+  "requestFramePermissions": []
+}
