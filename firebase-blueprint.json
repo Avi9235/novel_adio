@@ -1,0 +1,30 @@
+{
+  "entities": {
+    "Book": {
+      "title": "Book",
+      "description": "A novel added to the user's library",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "cover": { "type": "string" },
+        "chapters": { "type": "string", "description": "JSON stringified array of chapters to avoid nested array limits" },
+        "currentChapterIndex": { "type": "number" },
+        "currentPosition": { "type": "number" },
+        "addedAt": { "type": "number" },
+        "sourceUrl": { "type": "string" },
+        "isFavorite": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["reading", "finished", "plan_to_read"] },
+        "uid": { "type": "string", "description": "The ID of the user who owns this book" }
+      },
+      "required": ["id", "title", "uid", "addedAt"]
+    }
+  },
+  "firestore": {
+    "/libraries/{libraryId}/books/{bookId}": {
+      "schema": { "$ref": "#/entities/Book" },
+      "description": "Books in the user's library"
+    }
+  }
+}

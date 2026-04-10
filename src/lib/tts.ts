@@ -89,23 +89,41 @@ export function useTTS(text: string, onBoundary?: (charIndex: number) => void) {
     const finalChunks = [];
     for (const chunk of chunks) {
       if (chunk.text.length > 1500) {
+        // Split by sentence but keep them larger to avoid unnatural pauses
         const sentenceRegex = /([.?!])\s+(?=[A-Z])/g;
         let sMatch;
         let sLastIndex = 0;
+        let currentSubChunk = '';
+        let currentSubStart = chunk.start;
+        
         while ((sMatch = sentenceRegex.exec(chunk.text)) !== null) {
           const sEnd = sMatch.index + sMatch[1].length;
-          finalChunks.push({
-            start: chunk.start + sLastIndex,
-            end: chunk.start + sEnd,
-            text: chunk.text.slice(sLastIndex, sEnd)
-          });
+          const sentence = chunk.text.slice(sLastIndex, sEnd);
+          
+          if (currentSubChunk.length + sentence.length > 1000) {
+            finalChunks.push({
+              start: currentSubStart,
+              end: chunk.start + sLastIndex,
+              text: currentSubChunk
+            });
+            currentSubChunk = sentence;
+            currentSubStart = chunk.start + sLastIndex;
+          } else {
+            currentSubChunk += sentence;
+          }
+          
           sLastIndex = sEnd;
         }
+        
         if (sLastIndex < chunk.text.length) {
+          currentSubChunk += chunk.text.slice(sLastIndex);
+        }
+        
+        if (currentSubChunk) {
           finalChunks.push({
-            start: chunk.start + sLastIndex,
+            start: currentSubStart,
             end: chunk.end,
-            text: chunk.text.slice(sLastIndex)
+            text: currentSubChunk
           });
         }
       } else {
@@ -119,7 +137,7 @@ export function useTTS(text: string, onBoundary?: (charIndex: number) => void) {
     for (const sent of finalChunks) {
       if (!currentSent) {
         currentSent = { ...sent };
-      } else if (currentSent.text.length < 150) {
+      } else if (currentSent.text.length < 500) { // Increased from 150 to 500 to group more text together
         currentSent.text += ' ' + sent.text;
         currentSent.end = sent.end;
       } else {

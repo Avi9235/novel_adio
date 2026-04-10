@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: libraries/{libraryId}/books
+    // Document ID: {bookId}
+    // Fields:
+    //   - id: string (required)
+    //   - title: string (required)
+    //   - author: string (optional)
+    //   - cover: string (optional)
+    //   - chapters: string (optional, JSON stringified)
+    //   - currentChapterIndex: number (optional)
+    //   - currentPosition: number (optional)
+    //   - addedAt: number (required)
+    //   - sourceUrl: string (optional)
+    //   - isFavorite: boolean (optional)
+    //   - status: string (optional)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isValidBook(data) {
+      return data.keys().hasAll(['id', 'title', 'addedAt']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             data.addedAt is number &&
+             (!('author' in data) || (data.author is string && data.author.size() < 500)) &&
+             (!('cover' in data) || (data.cover is string && data.cover.size() < 2000)) &&
+             (!('chapters' in data) || (data.chapters is string && data.chapters.size() < 1000000)) &&
+             (!('currentChapterIndex' in data) || data.currentChapterIndex is number) &&
+             (!('currentPosition' in data) || data.currentPosition is number) &&
+             (!('sourceUrl' in data) || (data.sourceUrl is string && data.sourceUrl.size() < 2000)) &&
+             (!('isFavorite' in data) || data.isFavorite is bool) &&
+             (!('status' in data) || (data.status is string && data.status in ['reading', 'finished', 'plan_to_read']));
+    }
+
+    match /libraries/{libraryId}/books/{bookId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidBook(request.resource.data);
+      allow update: if isAuthenticated() && isValidBook(request.resource.data);
+      allow delete: if isAuthenticated();
+    }
+  }
+}

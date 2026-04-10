@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Book, storage } from '../lib/storage';
 import { parseEpub, parseTxt } from '../lib/parser';
-import { Book as BookIcon, Upload, Trash2, Play, Moon, Sun, RefreshCw, Loader2 } from 'lucide-react';
+import { Book as BookIcon, Upload, Trash2, Play, Moon, Sun, RefreshCw, Loader2, LogIn, LogOut } from 'lucide-react';
+import { auth, loginWithGoogle, logout } from '../firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 interface LibraryProps {
   onOpenBook: (bookId: string) => void;
@@ -15,10 +17,15 @@ export default function Library({ onOpenBook, isDarkMode, toggleDarkMode }: Libr
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [refreshingBookId, setRefreshingBookId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'reading' | 'finished' | 'favorites'>('all');
+  const [user, setUser] = useState<User | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadBooks();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      loadBooks();
+    });
+    return () => unsubscribe();
   }, []);
 
   const loadBooks = async () => {
@@ -138,7 +145,14 @@ export default function Library({ onOpenBook, isDarkMode, toggleDarkMode }: Libr
           <h1 className="text-[25px] md:text-3xl font-bold text-gray-900 dark:text-white tracking-tight truncate">My Library</h1>
         </div>
         
-        <div className="flex justify-center shrink-0 px-2">
+        <div className="flex justify-center shrink-0 px-2 gap-2">
+          <button 
+            onClick={() => setShowSyncModal(true)}
+            title="Sync Settings"
+            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-700 dark:text-gray-300"
+          >
+            <RefreshCw size={20} />
+          </button>
           <button 
             onClick={toggleDarkMode} 
             className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"

@@ -1,4 +1,5 @@
 import { get, set, del, keys } from 'idb-keyval';
+import { syncService } from './sync';
 
 export interface Chapter {
   id: string;
@@ -47,12 +48,22 @@ export const storage = {
     return get<Book>(`book_${id}`);
   },
 
+  async saveBookLocalOnly(book: Book): Promise<void> {
+    await set(`book_${book.id}`, book);
+  },
+
   async saveBook(book: Book): Promise<void> {
     await set(`book_${book.id}`, book);
+    await syncService.syncBookToCloud(book);
+  },
+
+  async deleteBookLocalOnly(id: string): Promise<void> {
+    await del(`book_${id}`);
   },
 
   async deleteBook(id: string): Promise<void> {
     await del(`book_${id}`);
+    await syncService.deleteBookFromCloud(id);
   },
 
   async updateProgress(id: string, chapterIndex: number, position: number): Promise<void> {

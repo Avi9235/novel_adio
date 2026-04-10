@@ -118,6 +118,7 @@ export default function Discover({ onOpenBook, isDarkMode }: DiscoverProps) {
               <option value="novelfire">NovelFire</option>
               <option value="lightnovelpub">LightNovelPub</option>
               <option value="noveltrust">NovelTrust</option>
+              <option value="freewebnovel">FreeWebNovel</option>
               <option value="wuxiaworldeu">WuxiaWorld.eu</option>
               <option value="royalroad">Royal Road</option>
             </select>

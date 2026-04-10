@@ -386,6 +386,80 @@ const scrapers: Scraper[] = [
     }
   },
   {
+    id: 'freewebnovel',
+    name: 'FreeWebNovel',
+    canHandle: (url) => url.includes('freewebnovel.com'),
+    search: async (query) => {
+      const response = await fetch(`https://freewebnovel.com/search?searchkey=${encodeURIComponent(query)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      const html = await response.text();
+      const $ = cheerio.load(html);
+      
+      const results: SearchResult[] = [];
+      $('.li-row').each((_, el) => {
+        const title = $(el).find('.tit a').text().trim() || $(el).find('h3 a').text().trim();
+        const url = $(el).find('.tit a').attr('href') || $(el).find('h3 a').attr('href') || $(el).find('a').first().attr('href');
+        const cover = $(el).find('.pic img').attr('src') || $(el).find('img').first().attr('src');
+        if (title && url) {
+          results.push({
+            title,
+            url: url.startsWith('http') ? url : `https://freewebnovel.com${url}`,
+            cover: cover ? (cover.startsWith('http') ? cover : `https://freewebnovel.com${cover}`) : '',
+            author: 'Unknown',
+            sourceId: 'freewebnovel',
+            sourceName: 'FreeWebNovel'
+          });
+        }
+      });
+      return results;
+    },
+    getNovel: async (url) => {
+      const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      const html = await response.text();
+      const $ = cheerio.load(html);
+      
+      const title = $('h1.tit').text().trim();
+      const cover = $('.pic img').attr('src');
+      const author = $('.txt .item').first().text().replace('Author:', '').trim() || 'Unknown';
+      
+      const chapters: any[] = [];
+      $('#m-chs li a').each((_, el) => {
+        const chTitle = $(el).text().trim();
+        const chUrl = $(el).attr('href');
+        if (chTitle && chUrl) {
+          chapters.push({
+            id: chUrl,
+            title: chTitle,
+            url: chUrl.startsWith('http') ? chUrl : `https://freewebnovel.com${chUrl}`,
+            text: ''
+          });
+        }
+      });
+      
+      return {
+        id: url,
+        title,
+        cover: cover ? (cover.startsWith('http') ? cover : `https://freewebnovel.com${cover}`) : '',
+        author,
+        sourceUrl: url,
+        chapters
+      };
+    },
+    getChapter: async (url) => {
+      const response = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      const html = await response.text();
+      const $ = cheerio.load(html);
+      
+      let text = '';
+      $('.txt p').each((_, el) => {
+        text += $(el).text().trim() + '\n\n';
+      });
+      
+      return text.trim();
+    }
+  },
+  {
     id: 'royalroad',
     name: 'Royal Road',
     canHandle: (url) => url.includes('royalroad.com'),
