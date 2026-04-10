@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Book, storage } from '../lib/storage';
 import { parseEpub, parseTxt } from '../lib/parser';
 import { Book as BookIcon, Upload, Trash2, Play, Moon, Sun, RefreshCw, Loader2, LogIn, LogOut } from 'lucide-react';
-import { auth, loginWithGoogle, logout } from '../firebase';
+import { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from '../firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
 interface LibraryProps {
@@ -17,8 +17,29 @@ export default function Library({ onOpenBook, isDarkMode, toggleDarkMode }: Libr
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [refreshingBookId, setRefreshingBookId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'reading' | 'finished' | 'favorites'>('all');
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
+  const [authError, setAuthError] = useState('');
+
   const [user, setUser] = useState<User | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    try {
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+      setShowAuthModal(false);
+    } catch (error: any) {
+      setAuthError(error.message);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -140,19 +161,74 @@ export default function Library({ onOpenBook, isDarkMode, toggleDarkMode }: Libr
           </div>
         </div>
       )}
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{isLogin ? 'Login' : 'Sign Up'}</h3>
+            <form onSubmit={handleAuth} className="flex flex-col gap-4">
+              <input 
+                type="email" 
+                placeholder="Email" 
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+                required
+              />
+              <input 
+                type="password" 
+                placeholder="Password" 
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+                required
+              />
+              {authError && <p className="text-red-500 text-sm">{authError}</p>}
+              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors">
+                {isLogin ? 'Login' : 'Sign Up'}
+              </button>
+            </form>
+            <div className="mt-4 text-center">
+              <button 
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login"}
+              </button>
+            </div>
+            <button 
+              onClick={() => setShowAuthModal(false)}
+              className="mt-4 w-full px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-8">
         <div className="flex-1 min-w-0">
           <h1 className="text-[25px] md:text-3xl font-bold text-gray-900 dark:text-white tracking-tight truncate">My Library</h1>
         </div>
         
         <div className="flex justify-center shrink-0 px-2 gap-2">
-          <button 
-            onClick={() => setShowSyncModal(true)}
-            title="Sync Settings"
-            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-700 dark:text-gray-300"
-          >
-            <RefreshCw size={20} />
-          </button>
+          {user ? (
+            <button 
+              onClick={() => signOut(auth)}
+              title="Sign out"
+              className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-700 dark:text-gray-300 flex items-center gap-2"
+            >
+              <LogOut size={20} />
+            </button>
+          ) : (
+            <button 
+              onClick={() => setShowAuthModal(true)}
+              title="Sign in"
+              className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-700 dark:text-gray-300"
+            >
+              <LogIn size={20} />
+            </button>
+          )}
           <button 
             onClick={toggleDarkMode} 
             className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"

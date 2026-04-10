@@ -68,18 +68,45 @@ const scrapers: Scraper[] = [
       // NovelFire loads chapters via ajax or they are in a list
       // Let's check if they are in the DOM directly
       const chapters: any[] = [];
-      $('#ch-page-1 li a').each((_, el) => {
-        const chTitle = $(el).find('.chapter-title').text().trim() || $(el).text().trim();
-        const chUrl = $(el).attr('href');
-        if (chTitle && chUrl) {
-          chapters.push({
-            id: chUrl,
-            title: chTitle,
-            url: chUrl.startsWith('http') ? chUrl : `https://novelfire.net${chUrl}`,
-            text: ''
+      
+      // Try to get novelId for ajax call
+      const novelId = $('#novel').attr('data-novel-id') || $('[data-novel-id]').attr('data-novel-id');
+      if (novelId) {
+        try {
+          const chRes = await fetch(`https://novelfire.net/ajax/chapter-archive?novelId=${novelId}`, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+          const chHtml = await chRes.text();
+          const $c = cheerio.load(chHtml);
+          $c('li a').each((_, el) => {
+            const chTitle = $c(el).find('.chapter-title').text().trim() || $c(el).text().trim();
+            const chUrl = $c(el).attr('href');
+            if (chTitle && chUrl) {
+              chapters.push({
+                id: chUrl,
+                title: chTitle,
+                url: chUrl.startsWith('http') ? chUrl : `https://novelfire.net${chUrl}`,
+                text: ''
+              });
+            }
           });
+        } catch (e) {
+          console.error('Failed to fetch NovelFire chapters via ajax:', e);
         }
-      });
+      }
+      
+      if (chapters.length === 0) {
+        $('#ch-page-1 li a').each((_, el) => {
+          const chTitle = $(el).find('.chapter-title').text().trim() || $(el).text().trim();
+          const chUrl = $(el).attr('href');
+          if (chTitle && chUrl) {
+            chapters.push({
+              id: chUrl,
+              title: chTitle,
+              url: chUrl.startsWith('http') ? chUrl : `https://novelfire.net${chUrl}`,
+              text: ''
+            });
+          }
+        });
+      }
       
       // If chapters are not in #ch-page-1, try a more generic selector
       if (chapters.length === 0) {
@@ -238,15 +265,34 @@ const scrapers: Scraper[] = [
       const author = $('.author a').text().trim() || 'Unknown';
       
       const chapters: any[] = [];
-      const novelId = $('#novel').attr('data-novel-id');
+      const novelId = $('#novel').attr('data-novel-id') || $('[data-novel-id]').attr('data-novel-id');
       
       if (novelId) {
-        const chRes = await fetch(`https://noveltrust.com/ajax/chapter-archive?novelId=${novelId}`, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        const chHtml = await chRes.text();
-        const $c = cheerio.load(chHtml);
-        $c('li a').each((_, el) => {
-          const chTitle = $c(el).find('.chapter-title').text().trim() || $c(el).text().trim();
-          const chUrl = $c(el).attr('href');
+        try {
+          const chRes = await fetch(`https://noveltrust.com/ajax/chapter-archive?novelId=${novelId}`, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+          const chHtml = await chRes.text();
+          const $c = cheerio.load(chHtml);
+          $c('li a').each((_, el) => {
+            const chTitle = $c(el).find('.chapter-title').text().trim() || $c(el).text().trim();
+            const chUrl = $c(el).attr('href');
+            if (chTitle && chUrl) {
+              chapters.push({
+                id: chUrl,
+                title: chTitle,
+                url: chUrl.startsWith('http') ? chUrl : `https://noveltrust.com${chUrl}`,
+                text: ''
+              });
+            }
+          });
+        } catch (e) {
+          console.error('Failed to fetch NovelTrust chapters via ajax:', e);
+        }
+      }
+      
+      if (chapters.length === 0) {
+        $('.chapter-list li a').each((_, el) => {
+          const chTitle = $(el).find('.chapter-title').text().trim() || $(el).text().trim();
+          const chUrl = $(el).attr('href');
           if (chTitle && chUrl) {
             chapters.push({
               id: chUrl,

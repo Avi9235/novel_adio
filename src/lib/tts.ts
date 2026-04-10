@@ -85,10 +85,10 @@ export function useTTS(text: string, onBoundary?: (charIndex: number) => void) {
       }
     }
     
-    // If a paragraph is too long (> 1500 chars), split it by sentences
+    // If a paragraph is too long (> 2000 chars), split it by sentences
     const finalChunks = [];
     for (const chunk of chunks) {
-      if (chunk.text.length > 1500) {
+      if (chunk.text.length > 2000) {
         // Split by sentence but keep them larger to avoid unnatural pauses
         const sentenceRegex = /([.?!])\s+(?=[A-Z])/g;
         let sMatch;
@@ -100,7 +100,7 @@ export function useTTS(text: string, onBoundary?: (charIndex: number) => void) {
           const sEnd = sMatch.index + sMatch[1].length;
           const sentence = chunk.text.slice(sLastIndex, sEnd);
           
-          if (currentSubChunk.length + sentence.length > 1000) {
+          if (currentSubChunk.length + sentence.length > 1500) {
             finalChunks.push({
               start: currentSubStart,
               end: chunk.start + sLastIndex,
@@ -137,7 +137,7 @@ export function useTTS(text: string, onBoundary?: (charIndex: number) => void) {
     for (const sent of finalChunks) {
       if (!currentSent) {
         currentSent = { ...sent };
-      } else if (currentSent.text.length < 500) { // Increased from 150 to 500 to group more text together
+      } else if (currentSent.text.length + sent.text.length < 1500) { // Group chunks up to 1500 chars
         currentSent.text += ' ' + sent.text;
         currentSent.end = sent.end;
       } else {
@@ -152,8 +152,15 @@ export function useTTS(text: string, onBoundary?: (charIndex: number) => void) {
   }, [text]);
 
   useEffect(() => {
+    let retryInterval: NodeJS.Timeout;
+
     const loadVoices = () => {
       const availableVoices = window.speechSynthesis.getVoices();
+      
+      if (availableVoices.length > 0 && retryInterval) {
+        clearInterval(retryInterval);
+      }
+
       const sortedVoices = [...availableVoices].sort((a, b) => {
         const aIsAndrew = a.name.includes('Andrew');
         const bIsAndrew = b.name.includes('Andrew');
@@ -181,7 +188,15 @@ export function useTTS(text: string, onBoundary?: (charIndex: number) => void) {
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
     
+    // Fallback for mobile browsers where onvoiceschanged might not fire
+    retryInterval = setInterval(() => {
+      if (window.speechSynthesis.getVoices().length > 0) {
+        loadVoices();
+      }
+    }, 500);
+    
     return () => {
+      if (retryInterval) clearInterval(retryInterval);
       window.speechSynthesis.onvoiceschanged = null;
       window.speechSynthesis.cancel();
       if (audioRef.current) {

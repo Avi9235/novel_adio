@@ -110,7 +110,7 @@ export default function Reader({ bookId, onClose, isDarkMode, toggleDarkMode }: 
     
     const finalChunks = [];
     for (const chunk of chunks) {
-      if (chunk.text.length > 1500) {
+      if (chunk.text.length > 2000) {
         // Split by sentence but keep them larger to avoid unnatural pauses
         const sentenceRegex = /([.?!])\s+(?=[A-Z])/g;
         let sMatch;
@@ -122,7 +122,7 @@ export default function Reader({ bookId, onClose, isDarkMode, toggleDarkMode }: 
           const sEnd = sMatch.index + sMatch[1].length;
           const sentence = chunk.text.slice(sLastIndex, sEnd);
           
-          if (currentSubChunk.length + sentence.length > 1000) {
+          if (currentSubChunk.length + sentence.length > 1500) {
             finalChunks.push({
               start: currentSubStart,
               end: chunk.start + sLastIndex,
@@ -158,7 +158,7 @@ export default function Reader({ bookId, onClose, isDarkMode, toggleDarkMode }: 
     for (const sent of finalChunks) {
       if (!currentSent) {
         currentSent = { ...sent };
-      } else if (currentSent.text.length < 500) { // Increased from 150 to 500
+      } else if (currentSent.text.length + sent.text.length < 1500) { // Group chunks up to 1500 chars
         currentSent.text += ' ' + sent.text;
         currentSent.end = sent.end;
       } else {
@@ -272,13 +272,6 @@ export default function Reader({ bookId, onClose, isDarkMode, toggleDarkMode }: 
     }
   };
 
-  const handleSentenceClick = (startChar: number) => {
-    if (book) {
-      storage.updateProgress(book.id, chapterIndex, startChar);
-    }
-    tts.seek(startChar);
-  };
-
   const handleSkip = (direction: 'forward' | 'backward') => {
     const currentSentenceIdx = sentences.findIndex(s => tts.currentCharIndex >= s.start && tts.currentCharIndex < s.end);
     let targetIdx = currentSentenceIdx;
@@ -306,6 +299,17 @@ export default function Reader({ bookId, onClose, isDarkMode, toggleDarkMode }: 
     };
     
     const updatedBook = { ...book, bookmarks: [...(book.bookmarks || []), newBookmark] };
+    setBook(updatedBook);
+    await storage.saveBook(updatedBook);
+  };
+
+  const handleDeleteBookmark = async (e: React.MouseEvent, bookmarkId: string) => {
+    e.stopPropagation();
+    if (!book) return;
+    const updatedBook = { 
+      ...book, 
+      bookmarks: book.bookmarks?.filter(bm => bm.id !== bookmarkId) || [] 
+    };
     setBook(updatedBook);
     await storage.saveBook(updatedBook);
   };
@@ -363,8 +367,13 @@ export default function Reader({ bookId, onClose, isDarkMode, toggleDarkMode }: 
         )}
         <div 
           ref={textContainerRef}
-          onClick={() => setShowControls(prev => !prev)}
-          className="flex-1 overflow-y-auto px-6 pt-20 pb-40 md:px-12 lg:px-24 touch-manipulation"
+          onClick={(e) => {
+            // Only toggle controls if clicking directly on the container, not the text
+            if (e.target === e.currentTarget) {
+              setShowControls(prev => !prev);
+            }
+          }}
+          className="flex-1 overflow-y-auto px-6 pt-20 pb-40 md:px-12 lg:px-24 touch-manipulation cursor-pointer"
         >
           {isLoadingText ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
@@ -372,7 +381,7 @@ export default function Reader({ bookId, onClose, isDarkMode, toggleDarkMode }: 
               <p>Downloading chapter text...</p>
             </div>
           ) : (
-            <div className="max-w-2xl mx-auto space-y-6 text-lg leading-relaxed text-gray-800 dark:text-gray-200 font-serif whitespace-pre-wrap">
+            <div className="max-w-2xl mx-auto space-y-6 text-lg leading-relaxed text-gray-800 dark:text-gray-200 font-serif whitespace-pre-wrap cursor-text">
               {sentences.map((sentence, idx) => {
                 const isActive = tts.currentCharIndex >= sentence.start && tts.currentCharIndex < sentence.end;
                 return (
@@ -435,9 +444,18 @@ export default function Reader({ bookId, onClose, isDarkMode, toggleDarkMode }: 
             ) : (
               <div className="space-y-3">
                 {book.bookmarks.sort((a,b) => b.timestamp - a.timestamp).map(bm => (
-                  <div key={bm.id} onClick={() => jumpToBookmark(bm)} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
-                    <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">
-                      Chapter {bm.chapterIndex + 1}
+                  <div key={bm.id} onClick={() => jumpToBookmark(bm)} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors group relative">
+                    <div className="flex justify-between items-start">
+                      <div className="text-xs text-blue-600 dark:text-blue-400 font-medium mb-1">
+                        Chapter {bm.chapterIndex + 1}
+                      </div>
+                      <button 
+                        onClick={(e) => handleDeleteBookmark(e, bm.id)}
+                        className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete Bookmark"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                     <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 italic">"{bm.textSnippet}"</p>
                   </div>
